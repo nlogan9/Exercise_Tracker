@@ -62,6 +62,21 @@ app.post('/api/users', async (req, res) => {
 
 });
 
+app.post('/api/users/:_id/exercises', async (req, res) => {
+  console.log(req.body);
+  let newExercise = new exercise(
+    { userID: req.body.id,
+      description: req.body.description,
+      duration: req.body.duration,
+      date: req.body.date
+    });
+
+    try {
+      const saveExercise = await newExercise.save();
+      const result = await 
+    }
+})
+
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
 })
