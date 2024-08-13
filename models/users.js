@@ -3,9 +3,9 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
    username: {
     type: String,
-    required: true
+    required: [true, 'A name is required.'],
+    unique: [true, 'That username already exists.']
    } 
 });
 
-userSchema.indexes();
 module.exports = mongoose.model('Users', userSchema);

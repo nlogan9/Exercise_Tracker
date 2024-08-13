@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 let exercise = require('./models/exercises');
 const users = require('./models/users');
 
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true, autoIndex: false });
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 
 //mongoose.deleteModel('Users');
 //console.log(mongoose.model('Users'));
@@ -39,31 +39,28 @@ const findUsers = users.find({}, function (err, docs) {
   if (err) {console.log(err);} else {console.log(docs);}
 }).select('_id username');
 
-app.post('/api/users', (req, res) => {
-  const username = req.body.username;
-  console.log(username);
-  const createAndSaveUser = (username, done) => {
-    console.log("save");
-    let newUser = new users({
-      username: username
-    })
-
-    newUser.save().then(findUsers)
-
-  };
-
-  try {
-    createAndSaveUser(username);
-  } catch (err) {console.log(err)};
-
-  
-
-  //console.log(findUser);
-  //res.send(findUser);
+app.get('/api/users', async (req, res) => {
+  //try {
+    const allUsers = await users.find({}).select('username _id');
+    res.send(allUsers);
+  //}
 });
 
-//users.deleteMany({ username: 'nathan' });
+app.post('/api/users', async (req, res) => {
+  const username = req.body.username;
+  console.log(username);
 
+  let newUser = new users({ username: username });
+
+  try {
+    const saveUser = await newUser.save();
+    const result = await users.findOne({ username: username }).select('username _id');
+    res.json(result);
+  } catch (err) {
+    res.json(err.message);
+  }
+
+});
 
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
