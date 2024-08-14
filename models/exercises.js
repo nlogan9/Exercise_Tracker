@@ -1,9 +1,10 @@
 const mongoose = require('mongoose');
 
 const exerciseSchema = new mongoose.Schema({
-    userID: [
-        {type: Schema.Types.ObjectID}
-    ]
+    userID: {
+        type: String,
+        required: [true, 'ID is required.']
+    },
     description: {
         type: String,
         required: [true, 'Description is required.']
@@ -14,7 +15,7 @@ const exerciseSchema = new mongoose.Schema({
     },
     date: {
         type: Date,
-        default: Date.now,
+        default: "$$NOW"
     }
 });
 

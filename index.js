@@ -7,10 +7,12 @@ const bodyParser = require('body-parser');
 let exercise = require('./models/exercises');
 const users = require('./models/users');
 
+
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 
 //mongoose.deleteModel('Users');
 //console.log(mongoose.model('Users'));
+
 
 
 app.use(cors())
@@ -63,17 +65,49 @@ app.post('/api/users', async (req, res) => {
 });
 
 app.post('/api/users/:_id/exercises', async (req, res) => {
-  console.log(req.body);
+  //console.log(req.body[':_id']);
   let newExercise = new exercise(
-    { userID: req.body.id,
+    { userID: req.body[':_id'],
       description: req.body.description,
       duration: req.body.duration,
       date: req.body.date
     });
 
+    const log = userID => {
+      
+      users.aggregate([
+        { $addFields: { 
+          "userID": { 
+            "$toString": "$_id" 
+          }
+        }
+      },
+        {
+          $lookup: {
+            from: "exercises",
+            localField: "userID",
+            foreignField: "userID",
+            as: "exerciseDocs"
+          }
+        }/*,
+        {
+          $match: { _id: userID }
+        }*/
+      ]).exec(function (err, doc) {
+        if (err) {console.log(err);} else {console.log(doc);}
+      })
+      console.log("log");
+    };
+
     try {
       const saveExercise = await newExercise.save();
-      const result = await 
+      //console.log("save");
+      const result = log(req.body[':_id']);
+      res.json(result);
+      console.log("test");
+    } catch (err) {
+      res.json(err.message);
+      console.log("err");
     }
 })
 
