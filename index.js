@@ -66,17 +66,20 @@ app.post('/api/users', async (req, res) => {
 
 app.post('/api/users/:_id/exercises', async (req, res) => {
   //console.log(req.body[':_id']);
-  const DATE = req.body.date === '' ? new Date().toDateString() : new Date(req.body.date).toDateString();
-  console.log(DATE);
+  const ISODATE = req.body.date === '' ? new Date() : new Date(req.body.date);
+  const STRINGDATE = ISODATE.toDateString();
+  console.log(STRINGDATE);
   let newExercise = new exercise(
     { userID: req.body[':_id'],
       description: req.body.description,
       duration: req.body.duration,
-      date: DATE
+      date: {
+        isodate: ISODATE,
+        stringdate: STRINGDATE
+      }
     });
 
     function log(userID, exerciseID) {
-
     users.aggregate([
       {
         $addFields: {
@@ -98,17 +101,19 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
       } ,
       {
         $match: { userID: userID }
-      }/*,
+      },
       {
         $project: { 
           username: 1,
           //count: { $size: "$log" },
           _id: 1,
-          log: {description: 1, duration: 1, date: 1}
+          date: { $arrayElemAt: [ "$log.date.stringdate", 0 ] },
+          duration: { $arrayElemAt: [ "$log.duration", 0 ] },
+          description: { $arrayElemAt: [ "$log.description", 0 ] }         
         }
-      }*/
+      }
     ]).exec(function (err, doc) {
-      if (err) { console.log(err); } else { res.json(doc); }
+      if (err) { console.log(err); } else { res.json(doc[0]); }
     });
     console.log("log");
   }
@@ -126,7 +131,14 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
 })
 
 app.get('/api/users/:_id/logs', async (req, res) => {
-  console.log(req.params._id);
+  console.log(req.query.from);
+  //const from = req.query.from === "" ? new Date().toDateString() : new Date(req.query.from).toDateString();
+  const from = new Date("2024-1-1");
+  console.log(from);
+  //const to = req.query.to ? new Date().toDateString() : new Date().toDateString;
+  const to = new Date("2040-12-31");
+  console.log(to);
+  //const limit = req.query.limit === "" ? 9999 : req.query.limit;
 
   function log(userID) {
     users.aggregate([
@@ -142,22 +154,32 @@ app.get('/api/users/:_id/logs', async (req, res) => {
           from: "exercises",
           localField: "userID",
           foreignField: "userID",
+          pipeline: [
+            {
+              $match: {
+                date: { isodate: { $gte: from } }
+              }
+            }
+          ],
           as: "log"
         }
       } ,
       {
-        $match: { userID: userID }
+        $match: { 
+          userID: userID/*,
+          log.date.isodate: { $lte: from}*/
+         }
       },
       {
         $project: { 
           username: 1,
           count: { $size: "$log" },
           _id: 1,
-          log: {description: 1, duration: 1, date: 1}
+          log: {description: 1, duration: 1, date: { $arrayElemAt: [ "$log.date.stringdate", 0 ] }}
         }
       }
     ]).exec(function (err, doc) {
-      if (err) { console.log(err); } else { res.json(doc); }
+      if (err) { console.log(err); } else { res.json(doc[0]); }
     });
     console.log("log");
   }
