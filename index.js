@@ -58,7 +58,9 @@ app.post('/api/users', async (req, res) => {
   try {
     const saveUser = await newUser.save();
     const result = await users.findOne({ username: username }).select('username _id');
-    res.json(result);
+    let newID = result._id;
+    console.log(typeof(newID))
+    res.json({username: username, _id: newID});
   } catch (err) {
     res.json(err.message);
   }
@@ -66,7 +68,7 @@ app.post('/api/users', async (req, res) => {
 });
 
 app.post('/api/users/:_id?/exercises', async (req, res) => {
-  console.log(req.body.username);
+  console.log(req.body[':_id']);
   const newID = req.body[':_id'] === undefined ? '66c38a5a6601000000000000' : req.body[':_id'];
   //console.log("POST an exercise", newID, req.body.description, req.body.duration, req.body.date);
   const ISODATE = req.body.date === undefined ? new Date() : new Date(req.body.date);
