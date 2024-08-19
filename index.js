@@ -43,6 +43,7 @@ const findUsers = users.find({}, function (err, docs) {
 
 app.get('/api/users', async (req, res) => {
   //try {
+    console.log("Get list of all users");
     const allUsers = await users.find({}).select('username _id');
     res.send(allUsers);
   //}
@@ -50,7 +51,7 @@ app.get('/api/users', async (req, res) => {
 
 app.post('/api/users', async (req, res) => {
   const username = req.body.username;
-  console.log(username);
+  console.log("Create new user: ", username);
 
   let newUser = new users({ username: username });
 
@@ -64,13 +65,15 @@ app.post('/api/users', async (req, res) => {
 
 });
 
-app.post('/api/users/:_id/exercises', async (req, res) => {
-  //console.log(req.body[':_id']);
-  const ISODATE = req.body.date === '' ? new Date() : new Date(req.body.date);
+app.post('/api/users/:_id?/exercises', async (req, res) => {
+  console.log(req.body.username);
+  const newID = req.body[':_id'] === undefined ? '66c38a5a6601000000000000' : req.body[':_id'];
+  //console.log("POST an exercise", newID, req.body.description, req.body.duration, req.body.date);
+  const ISODATE = req.body.date === undefined ? new Date() : new Date(req.body.date);
   const STRINGDATE = ISODATE.toDateString();
   console.log(STRINGDATE);
   let newExercise = new exercise(
-    { userID: req.body[':_id'],
+    { userID: newID,
       description: req.body.description,
       duration: req.body.duration,
       date: {
@@ -106,16 +109,15 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
         $project: { 
           username: 1,
           //count: { $size: "$log" },
-          _id: 1,
+          _id: "$userID",
           date: { $arrayElemAt: [ "$log.date.stringdate", 0 ] },
           duration: { $arrayElemAt: [ "$log.duration", 0 ] },
           description: { $arrayElemAt: [ "$log.description", 0 ] }         
         }
       }
     ]).exec(function (err, doc) {
-      if (err) { console.log(err); } else { res.json(doc[0]); }
+      if (err) { console.log("Error on POST an exercise", err); } else { res.json(doc[0]); }
     });
-    console.log("log");
   }
 
     try {
@@ -123,20 +125,20 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
       //res.json(saveExercise._id);
       const result = log(req.body[':_id'], saveExercise._id);
       //res.json(result);
-      console.log("test");
+      console.log("Try block post an exercise");
     } catch (err) {
       res.json(err.message);
-      console.log("err");
+      console.log(err.message);
     }
 })
 
-app.get('/api/users/:_id/logs', async (req, res) => {
-  console.log(req.query.from);
-  //const from = req.query.from === "" ? new Date().toDateString() : new Date(req.query.from).toDateString();
-  const from = new Date("2024-1-1");
+/*app.get('/api/users/:_id/logs', async (req, res) => {
+  console.log(typeof(req.query.to));
+  const from = req.query.from === undefined ? new Date("2000-1-1") : new Date(req.query.from);
+  //const from = new Date("2024-1-1");
   console.log(from);
-  //const to = req.query.to ? new Date().toDateString() : new Date().toDateString;
-  const to = new Date("2040-12-31");
+  const to = req.query.to === undefined ? new Date("2040-12-31") : new Date(req.query.to);
+  //const to = new Date("2040-12-31");
   console.log(to);
   //const limit = req.query.limit === "" ? 9999 : req.query.limit;
 
@@ -154,21 +156,24 @@ app.get('/api/users/:_id/logs', async (req, res) => {
           from: "exercises",
           localField: "userID",
           foreignField: "userID",
-          pipeline: [
-            {
-              $match: {
-                date: { isodate: { $gte: from } }
+          pipeline: [{
+            $match: {
+              date: {
+                isodate: {
+                  $expr: {
+                    $gte: from
+                  }
+                }
               }
             }
-          ],
+          }],
           as: "log"
         }
       } ,
       {
         $match: { 
-          userID: userID/*,
-          log.date.isodate: { $lte: from}*/
-         }
+          userID: userID
+        }
       },
       {
         $project: { 
@@ -192,6 +197,57 @@ app.get('/api/users/:_id/logs', async (req, res) => {
       res.json(err.message);
       console.log("err");
     }
+})*/
+
+app.get('/api/users/:_id/logs', async (req, res) => {
+  console.log("Get logs");
+  let reqID;
+  let username;
+  let hexregex = /^([a-f0-9]{24})$/
+  console.log(hexregex.test(req.params._id));
+  if (hexregex.test(req.params._id)) {
+    reqID = req.params._id;
+  } else { reqID = '000000000000000000000000';}
+  console.log(reqID);
+  let userID = mongoose.Types.ObjectId(reqID);
+  
+  console.log(userID);
+  try {
+    const findUser = await users.findOne({ _id: userID });
+    username = findUser.username;
+    console.log("Try to get username ", username);
+  } catch (err) {
+    res.json(err.message);
+    console.log("username error");
+    return;
+  }
+
+  const from = req.query.from === undefined ? new Date("2000-1-1") : new Date(req.query.from);
+  const to = req.query.to === undefined ? new Date() : new Date(req.query.to);
+  console.log("From: ", from, " To: ", to);
+
+  const findExercises = await exercise.find({
+    "date.isodate": {
+        $gte: from,
+        $lte: to
+      },
+    userID: reqID
+    },
+    { description: 1, duration: 1, date: "$date.stringdate", _id: 0 },
+    { limit: Number(req.query.limit) }
+  );
+  console.log(findExercises);
+
+  let response = {};
+  if (req.query.from === undefined && req.query.to === undefined) {
+    response = {_id: reqID, username: username, count: findExercises.length, log: findExercises};
+  } else if (req.query.from === undefined && req.query.to !== undefined) {
+    response = {_id: reqID, username: username, to: to.toDateString(), count: findExercises.length, log: findExercises};
+  } else if (req.query.from !== undefined && req.query.to === undefined) {
+    response = {_id: reqID, username: username, from: from.toDateString(), count: findExercises.length, log: findExercises};
+  } else {response = {_id: reqID, username: username, from: from.toDateString(), to: to.toDateString(), count: findExercises.length, log: findExercises}}
+
+  res.json(response);
 })
 
 const listener = app.listen(process.env.PORT || 3000, () => {
