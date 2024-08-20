@@ -57,23 +57,22 @@ app.post('/api/users', async (req, res) => {
 
   try {
     const saveUser = await newUser.save();
-    const result = await users.findOne({ username: username }).select('username _id');
-    let newID = result._id;
-    console.log(typeof(newID))
-    res.json({username: username, _id: newID});
+    const result = await users.findOne({ username: username }, { "id": { "$toString": "$_id" }, username: 1 });
+    console.log("_id: ", result.id, " _id type: ", typeof(result.id));
+    res.json({_id: result.id, username: result.username});
   } catch (err) {
     res.json(err.message);
   }
 
 });
 
-app.post('/api/users/:_id?/exercises', async (req, res) => {
-  console.log(req.body[':_id']);
-  const newID = req.body[':_id'] === undefined ? '66c38a5a6601000000000000' : req.body[':_id'];
-  //console.log("POST an exercise", newID, req.body.description, req.body.duration, req.body.date);
+app.post('/api/users/:_id/exercises', async (req, res) => {
+  console.log("request body values id: ", req.params._id, "description: ", req.body.description);
+  const newID = req.params._id// === undefined ? '66c38a5a6601000000000000' : req.body[':_id'];
+  console.log("POST an exercise", newID, req.body.description, req.body.duration, req.body.date);
   const ISODATE = req.body.date === undefined ? new Date() : new Date(req.body.date);
-  const STRINGDATE = ISODATE.toDateString();
-  console.log(STRINGDATE);
+  const STRINGDATE = ISODATE.toUTCString();
+  console.log("date string to be posted: ", STRINGDATE, "date type: ", typeof(STRINGDATE));
   let newExercise = new exercise(
     { userID: newID,
       description: req.body.description,
@@ -124,8 +123,8 @@ app.post('/api/users/:_id?/exercises', async (req, res) => {
 
     try {
       const saveExercise = await newExercise.save();
-      //res.json(saveExercise._id);
-      const result = log(req.body[':_id'], saveExercise._id);
+      console.log(saveExercise._id);
+      const result = log(newID, saveExercise._id);
       //res.json(result);
       console.log("Try block post an exercise");
     } catch (err) {
@@ -224,7 +223,7 @@ app.get('/api/users/:_id/logs', async (req, res) => {
     return;
   }
 
-  const from = req.query.from === undefined ? new Date("2000-1-1") : new Date(req.query.from);
+  const from = req.query.from === undefined ? new Date("1900-1-1") : new Date(req.query.from);
   const to = req.query.to === undefined ? new Date() : new Date(req.query.to);
   console.log("From: ", from, " To: ", to);
 
@@ -244,10 +243,10 @@ app.get('/api/users/:_id/logs', async (req, res) => {
   if (req.query.from === undefined && req.query.to === undefined) {
     response = {_id: reqID, username: username, count: findExercises.length, log: findExercises};
   } else if (req.query.from === undefined && req.query.to !== undefined) {
-    response = {_id: reqID, username: username, to: to.toDateString(), count: findExercises.length, log: findExercises};
+    response = {_id: reqID, username: username, to: to.toUTCString(), count: findExercises.length, log: findExercises};
   } else if (req.query.from !== undefined && req.query.to === undefined) {
-    response = {_id: reqID, username: username, from: from.toDateString(), count: findExercises.length, log: findExercises};
-  } else {response = {_id: reqID, username: username, from: from.toDateString(), to: to.toDateString(), count: findExercises.length, log: findExercises}}
+    response = {_id: reqID, username: username, from: from.toUTCString(), count: findExercises.length, log: findExercises};
+  } else {response = {_id: reqID, username: username, from: from.toUTCString(), to: to.toUTCString(), count: findExercises.length, log: findExercises}}
 
   res.json(response);
 })
