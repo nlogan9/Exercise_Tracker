@@ -67,11 +67,17 @@ app.post('/api/users', async (req, res) => {
 });
 
 app.post('/api/users/:_id/exercises', async (req, res) => {
-  console.log("request body values id: ", req.params._id, "description: ", req.body.description);
+  console.log("request body values id: ", req.params._id, "date: ", req.body.date);
   const newID = req.params._id// === undefined ? '66c38a5a6601000000000000' : req.body[':_id'];
   console.log("POST an exercise", newID, req.body.description, req.body.duration, req.body.date);
-  const ISODATE = req.body.date === undefined ? new Date() : new Date(req.body.date);
-  const STRINGDATE = ISODATE.toUTCString();
+  let ISODATE;
+  if (req.body.date === "" || req.body.date === undefined) { 
+    ISODATE = new Date();
+  } else {
+    ISODATE = new Date(req.body.date);
+    ISODATE.setUTCHours(12);
+  }
+  const STRINGDATE = ISODATE.toDateString();
   console.log("date string to be posted: ", STRINGDATE, "date type: ", typeof(STRINGDATE));
   let newExercise = new exercise(
     { userID: newID,
@@ -133,73 +139,6 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
     }
 })
 
-/*app.get('/api/users/:_id/logs', async (req, res) => {
-  console.log(typeof(req.query.to));
-  const from = req.query.from === undefined ? new Date("2000-1-1") : new Date(req.query.from);
-  //const from = new Date("2024-1-1");
-  console.log(from);
-  const to = req.query.to === undefined ? new Date("2040-12-31") : new Date(req.query.to);
-  //const to = new Date("2040-12-31");
-  console.log(to);
-  //const limit = req.query.limit === "" ? 9999 : req.query.limit;
-
-  function log(userID) {
-    users.aggregate([
-      {
-        $addFields: {
-          "userID": {
-            "$toString": "$_id"
-          }
-        }
-      },
-      {
-        $lookup: {
-          from: "exercises",
-          localField: "userID",
-          foreignField: "userID",
-          pipeline: [{
-            $match: {
-              date: {
-                isodate: {
-                  $expr: {
-                    $gte: from
-                  }
-                }
-              }
-            }
-          }],
-          as: "log"
-        }
-      } ,
-      {
-        $match: { 
-          userID: userID
-        }
-      },
-      {
-        $project: { 
-          username: 1,
-          count: { $size: "$log" },
-          _id: 1,
-          log: {description: 1, duration: 1, date: { $arrayElemAt: [ "$log.date.stringdate", 0 ] }}
-        }
-      }
-    ]).exec(function (err, doc) {
-      if (err) { console.log(err); } else { res.json(doc[0]); }
-    });
-    console.log("log");
-  }
-
-    try {
-      const result = log(req.params._id);
-      //res.json(result);
-      console.log("get");
-    } catch (err) {
-      res.json(err.message);
-      console.log("err");
-    }
-})*/
-
 app.get('/api/users/:_id/logs', async (req, res) => {
   console.log("Get logs");
   let reqID;
@@ -224,7 +163,9 @@ app.get('/api/users/:_id/logs', async (req, res) => {
   }
 
   const from = req.query.from === undefined ? new Date("1900-1-1") : new Date(req.query.from);
-  const to = req.query.to === undefined ? new Date() : new Date(req.query.to);
+  from.setUTCHours(6);
+  const to = req.query.to === undefined ? new Date("2050-1-1") : new Date(req.query.to);
+  to.setUTCHours(6);
   console.log("From: ", from, " To: ", to);
 
   const findExercises = await exercise.find({
@@ -237,17 +178,18 @@ app.get('/api/users/:_id/logs', async (req, res) => {
     { description: 1, duration: 1, date: "$date.stringdate", _id: 0 },
     { limit: Number(req.query.limit) }
   );
-  console.log(findExercises);
+  //console.log(findExercises);
 
   let response = {};
   if (req.query.from === undefined && req.query.to === undefined) {
     response = {_id: reqID, username: username, count: findExercises.length, log: findExercises};
   } else if (req.query.from === undefined && req.query.to !== undefined) {
-    response = {_id: reqID, username: username, to: to.toUTCString(), count: findExercises.length, log: findExercises};
+    response = {_id: reqID, username: username, to: to.toDateString(), count: findExercises.length, log: findExercises};
   } else if (req.query.from !== undefined && req.query.to === undefined) {
-    response = {_id: reqID, username: username, from: from.toUTCString(), count: findExercises.length, log: findExercises};
-  } else {response = {_id: reqID, username: username, from: from.toUTCString(), to: to.toUTCString(), count: findExercises.length, log: findExercises}}
+    response = {_id: reqID, username: username, from: from.toDateString(), count: findExercises.length, log: findExercises};
+  } else {response = {_id: reqID, username: username, from: from.toDateString(), to: to.toDateString(), count: findExercises.length, log: findExercises}}
 
+  console.log(response);
   res.json(response);
 })
 
